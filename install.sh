@@ -146,8 +146,9 @@ ensure_repo() {
     msg_info "Using existing install at ${INSTALL_DIR}"
     if [ -d "$INSTALL_DIR/.git" ]; then
       msg_info "Pulling latest changes..."
-      git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH" >/dev/null 2>&1 || \
+      if ! git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH" >/dev/null 2>&1; then
         msg_warn "Could not pull latest changes; continuing with local copy"
+      fi
     fi
   else
     msg_info "Cloning ${REPO_URL} → ${INSTALL_DIR}"
@@ -155,15 +156,21 @@ ensure_repo() {
       msg_error "Install path exists but is not a vps-dashboard checkout: ${INSTALL_DIR}"
       exit 1
     fi
-    git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$INSTALL_DIR"
+    if ! git clone --branch "$BRANCH" --depth 1 --quiet "$REPO_URL" "$INSTALL_DIR"; then
+      msg_error "Failed to clone repository"
+      exit 1
+    fi
+    msg_ok "Repository ready"
   fi
   cd "$INSTALL_DIR"
 }
 
 choose_role() {
+  SELECTED_ROLE=""
+
   if [ -n "${ROLE:-}" ]; then
     case "$ROLE" in
-      server|agent) echo "$ROLE"; return ;;
+      server|agent) SELECTED_ROLE="$ROLE"; return ;;
       *)
         msg_error "ROLE must be 'server' or 'agent' (got: ${ROLE})"
         exit 1
@@ -181,8 +188,8 @@ choose_role() {
   while true; do
     prompt "Enter choice" "1" choice
     case "$choice" in
-      1|server|s) echo "server"; return ;;
-      2|agent|a)  echo "agent"; return ;;
+      1|server|s) SELECTED_ROLE="server"; return ;;
+      2|agent|a)  SELECTED_ROLE="agent"; return ;;
       *) msg_warn "Please enter 1 or 2" ;;
     esac
   done
@@ -352,8 +359,8 @@ main() {
 
   ensure_repo
 
-  local role
-  role="$(choose_role)"
+  choose_role
+  local role="$SELECTED_ROLE"
 
   case "$role" in
     server)
