@@ -290,6 +290,8 @@ configure_agent() {
   local env_file="agent/.env"
   local ts_authkey=""
   local dashboard_url=""
+  local dashboard_host=""
+  local dashboard_ts_ip=""
   local api_key=""
   local node_name=""
   local report_interval="30"
@@ -299,6 +301,7 @@ configure_agent() {
   echo ""
   echo "  Tailscale auth key: https://login.tailscale.com/admin/settings/keys"
   echo "  Dashboard URL:     https://<machine>.<tailnet>.ts.net  (Tailscale Serve URL)"
+  echo "  Dashboard TS IP:   run 'tailscale ip -4' on the dashboard host"
   echo ""
 
   if [ -f "$env_file" ] && ! prompt_yes_no "Overwrite existing agent/.env?"; then
@@ -316,6 +319,16 @@ configure_agent() {
     [ -z "$dashboard_url" ] && msg_warn "DASHBOARD_URL is required"
   done
 
+  # Derive the hostname (strip scheme + any path/port) from the URL.
+  dashboard_host="${dashboard_url#*://}"
+  dashboard_host="${dashboard_host%%/*}"
+  dashboard_host="${dashboard_host%%:*}"
+
+  while [ -z "$dashboard_ts_ip" ]; do
+    prompt "Dashboard Tailscale IPv4 (DASHBOARD_TS_IP)" "" dashboard_ts_ip
+    [ -z "$dashboard_ts_ip" ] && msg_warn "DASHBOARD_TS_IP is required (run 'tailscale ip -4' on the server)"
+  done
+
   while [ -z "$api_key" ]; do
     prompt_secret "API key (must match server)" "" api_key
     [ -z "$api_key" ] && msg_warn "API key is required"
@@ -328,12 +341,14 @@ configure_agent() {
   {
     write_env_line "TS_AUTHKEY" "$ts_authkey"
     write_env_line "DASHBOARD_URL" "$dashboard_url"
+    write_env_line "DASHBOARD_HOST" "$dashboard_host"
+    write_env_line "DASHBOARD_TS_IP" "$dashboard_ts_ip"
     write_env_line "API_KEY" "$api_key"
     write_env_line "NODE_NAME" "$node_name"
     write_env_line "REPORT_INTERVAL" "$report_interval"
   } > "$env_file"
 
-  msg_ok "Wrote agent/.env"
+  msg_ok "Wrote agent/.env (dashboard host: ${dashboard_host} → ${dashboard_ts_ip})"
 }
 
 start_server() {

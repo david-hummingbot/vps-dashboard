@@ -72,7 +72,8 @@ sidecar container. Just provide an auth key.
 ```bash
 cd agent/
 cp .env.example .env
-# Set TS_AUTHKEY, DASHBOARD_URL (Tailscale Serve HTTPS URL), API_KEY, NODE_NAME
+# Set TS_AUTHKEY, DASHBOARD_URL (Tailscale Serve HTTPS URL), API_KEY, NODE_NAME,
+# plus DASHBOARD_HOST and DASHBOARD_TS_IP (see note below)
 docker compose up -d
 ```
 
@@ -80,6 +81,13 @@ The agent reports every 30 seconds (configurable via `REPORT_INTERVAL`).
 
 > **Tip:** create a *reusable* + *ephemeral* auth key so re-deploys don't pile up
 > stale nodes in your Tailscale admin console.
+
+> **Why `DASHBOARD_HOST` / `DASHBOARD_TS_IP`?** In-container MagicDNS needs kernel
+> modules that many VPS hosts don't expose to containers, so `*.ts.net` names may
+> not resolve inside the sidecar. Instead, the agent maps the dashboard's hostname
+> directly to its Tailscale IP via `extra_hosts`. TLS still validates because the
+> hostname matches the `tailscale serve` certificate. Find the IP by running
+> `tailscale ip -4` on the dashboard host.
 
 ---
 
@@ -115,6 +123,8 @@ Create `server/.env.example` from the above and commit it (without real values).
 |-------------------|----------|----------------|--------------------------------------|
 | `TS_AUTHKEY`      | Yes      | —              | Tailscale auth key for the sidecar   |
 | `DASHBOARD_URL`   | Yes      | —              | Tailscale Serve HTTPS URL (e.g. `https://deathstar.tail….ts.net`) |
+| `DASHBOARD_HOST`  | Yes      | —              | Hostname part of `DASHBOARD_URL` (no scheme) |
+| `DASHBOARD_TS_IP` | Yes      | —              | Dashboard's Tailscale IPv4 (`tailscale ip -4`) |
 | `API_KEY`         | Yes      | `changeme`     | Must match server `API_KEY`          |
 | `NODE_NAME`       | No       | `vps-agent`    | Dashboard label + Tailscale hostname |
 | `REPORT_INTERVAL` | No       | `30`           | Seconds between metric reports       |
