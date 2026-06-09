@@ -12,7 +12,28 @@ A self-hosted server monitoring dashboard. All traffic stays inside your Tailsca
 
 ## Quick Start
 
-### 1. Deploy the Dashboard Server
+### One-click install (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/david-hummingbot/vps-dashboard/main/install.sh | bash
+```
+
+The installer will:
+1. Clone the repo to `~/vps-dashboard` (override with `INSTALL_DIR=/path`)
+2. Ask whether you're setting up the **dashboard server** or an **agent**
+3. Prompt for the required configuration (API key, Tailscale auth key, etc.)
+4. Build and start the Docker containers
+
+Non-interactive example (agent):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/david-hummingbot/vps-dashboard/main/install.sh | \
+  ROLE=agent INSTALL_DIR=~/vps-dashboard bash
+```
+
+### Manual install
+
+#### 1. Deploy the Dashboard Server
 
 On your dashboard host:
 
@@ -44,30 +65,16 @@ No need to install Tailscale on the host — the agent ships with a Tailscale
 sidecar container. Just provide an auth key.
 
 ```bash
-# Clone or copy the agent/ directory, then:
 cd agent/
-
-# Copy and edit the env file
 cp .env.example .env
-# Set:
-#   TS_AUTHKEY    = Tailscale auth key (https://login.tailscale.com/admin/settings/keys)
-#   DASHBOARD_URL = https://<machine>.<tailnet>.ts.net   (Tailscale Serve URL — not 100.x:8080)
-#   API_KEY       = <same key as server>
-#   NODE_NAME     = <friendly name for this server>
-
+# Set TS_AUTHKEY, DASHBOARD_URL (Tailscale Serve HTTPS URL), API_KEY, NODE_NAME
 docker compose up -d
 ```
-
-This starts two containers:
-- `vps-agent-tailscale` — joins the machine to your tailnet using `TS_AUTHKEY`
-- `vps-agent` — shares the sidecar's network (`network_mode: service:tailscale`)
-  so it can reach the dashboard over Tailscale directly
 
 The agent reports every 30 seconds (configurable via `REPORT_INTERVAL`).
 
 > **Tip:** create a *reusable* + *ephemeral* auth key so re-deploys don't pile up
-> stale nodes in your Tailscale admin console. Node state is persisted in
-> `./tailscale-state` so restarts keep the same identity.
+> stale nodes in your Tailscale admin console.
 
 ---
 
@@ -140,6 +147,7 @@ Alerts are sent for:
 
 ```
 vps-dashboard/
+├── install.sh               # One-click installer
 ├── server/
 │   ├── main.py              # FastAPI application
 │   ├── database.py          # SQLAlchemy models (SQLite)
