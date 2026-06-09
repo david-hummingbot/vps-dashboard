@@ -1,0 +1,28 @@
+services:
+  vps-agent:
+    build: .
+    # Or use the pre-built image:
+    # image: ghcr.io/youruser/vps-agent:latest
+    container_name: vps-agent
+    restart: unless-stopped
+    pid: "host"           # gives psutil access to real host metrics
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    environment:
+      # Tailscale IP (or hostname) of your dashboard server — required
+      - DASHBOARD_URL=http://100.x.x.x:8080
+
+      # Must match the server API_KEY
+      - API_KEY=changeme
+
+      # Human-readable name shown in the dashboard
+      - NODE_NAME=my-server-01
+
+      # How often to report (seconds)
+      - REPORT_INTERVAL=30
+
+      # Let psutil read host /proc from the bind-mounted path
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys

@@ -1,0 +1,29 @@
+services:
+  dashboard:
+    build: .
+    container_name: vps-dashboard
+    restart: unless-stopped
+    # Tailscale: bind only to Tailscale interface (100.x.x.x) or localhost
+    # Change to your Tailscale IP or keep 127.0.0.1 and use Tailscale serve
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      # Required: change this secret
+      - API_KEY=${API_KEY:-changeme}
+
+      # Optional: Discord webhook URL
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+
+      # Optional: Telegram bot
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+
+      # Thresholds (percent)
+      - ALERT_CPU_THRESHOLD=${ALERT_CPU_THRESHOLD:-90}
+      - ALERT_RAM_THRESHOLD=${ALERT_RAM_THRESHOLD:-90}
+      - ALERT_DISK_THRESHOLD=${ALERT_DISK_THRESHOLD:-90}
+
+      # Seconds without check-in before a node is marked offline
+      - OFFLINE_THRESHOLD_SECONDS=${OFFLINE_THRESHOLD_SECONDS:-120}
