@@ -40,21 +40,34 @@ tailscale serve 8080
 
 ### 2. Install the Agent on Each VPS
 
-On every server you want to monitor:
+No need to install Tailscale on the host — the agent ships with a Tailscale
+sidecar container. Just provide an auth key.
 
 ```bash
 # Clone or copy the agent/ directory, then:
 cd agent/
 
-# Edit docker-compose.yml and set:
-#   DASHBOARD_URL=http://<tailscale-ip-of-dashboard>:8080
-#   API_KEY=<same key as server>
-#   NODE_NAME=<friendly name for this server>
+# Copy and edit the env file
+cp .env.example .env
+# Set:
+#   TS_AUTHKEY    = Tailscale auth key (https://login.tailscale.com/admin/settings/keys)
+#   DASHBOARD_URL = http://<tailscale-ip-of-dashboard>:8080
+#   API_KEY       = <same key as server>
+#   NODE_NAME     = <friendly name for this server>
 
 docker compose up -d
 ```
 
+This starts two containers:
+- `vps-agent-tailscale` — joins the machine to your tailnet using `TS_AUTHKEY`
+- `vps-agent` — shares the sidecar's network (`network_mode: service:tailscale`)
+  so it can reach the dashboard over Tailscale directly
+
 The agent reports every 30 seconds (configurable via `REPORT_INTERVAL`).
+
+> **Tip:** create a *reusable* + *ephemeral* auth key so re-deploys don't pile up
+> stale nodes in your Tailscale admin console. Node state is persisted in
+> `./tailscale-state` so restarts keep the same identity.
 
 ---
 
@@ -86,12 +99,13 @@ Create `server/.env.example` from the above and commit it (without real values).
 
 ### Agent Environment Variables
 
-| Variable          | Required | Default        | Description                        |
-|-------------------|----------|----------------|------------------------------------|
-| `DASHBOARD_URL`   | Yes      | —              | Tailscale URL of dashboard server  |
-| `API_KEY`         | Yes      | `changeme`     | Must match server `API_KEY`        |
-| `NODE_NAME`       | No       | hostname       | Name shown in dashboard            |
-| `REPORT_INTERVAL` | No       | `30`           | Seconds between metric reports     |
+| Variable          | Required | Default        | Description                          |
+|-------------------|----------|----------------|--------------------------------------|
+| `TS_AUTHKEY`      | Yes      | —              | Tailscale auth key for the sidecar   |
+| `DASHBOARD_URL`   | Yes      | —              | Tailscale URL of dashboard server    |
+| `API_KEY`         | Yes      | `changeme`     | Must match server `API_KEY`          |
+| `NODE_NAME`       | No       | `vps-agent`    | Dashboard label + Tailscale hostname |
+| `REPORT_INTERVAL` | No       | `30`           | Seconds between metric reports       |
 
 ---
 
@@ -141,5 +155,6 @@ vps-dashboard/
     ├── agent.py             # Metric collector
     ├── requirements.txt
     ├── Dockerfile
-    └── docker-compose.yml
+    ├── .env.example         # TS_AUTHKEY, DASHBOARD_URL, API_KEY, ...
+    └── docker-compose.yml   # agent + Tailscale sidecar
 ```

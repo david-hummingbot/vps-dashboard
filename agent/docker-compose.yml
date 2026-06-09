@@ -1,27 +1,50 @@
 services:
+  # Tailscale sidecar — joins this machine to your tailnet.
+  # No need to install Tailscale on the host; just provide a TS_AUTHKEY.
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: vps-agent-tailscale
+    hostname: ${NODE_NAME:-vps-agent}     # name shown in your Tailscale admin console
+    restart: unless-stopped
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY:?Set TS_AUTHKEY in your .env}
+      - TS_STATE_DIR=/var/lib/tailscale    # persist node identity across restarts
+      - TS_USERSPACE=false                 # kernel networking so the agent can reach 100.x directly
+      - TS_EXTRA_ARGS=--accept-routes
+    volumes:
+      - ./tailscale-state:/var/lib/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
   vps-agent:
     build: .
     # Or use the pre-built image:
     # image: ghcr.io/youruser/vps-agent:latest
     container_name: vps-agent
     restart: unless-stopped
-    pid: "host"           # gives psutil access to real host metrics
+    depends_on:
+      - tailscale
+    network_mode: "service:tailscale"   # share the Tailscale container's network
+    pid: "host"                          # gives psutil access to real host metrics
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
     environment:
-      # Tailscale IP (or hostname) of your dashboard server — required
-      - DASHBOARD_URL=http://100.x.x.x:8080
+      # Tailscale IP (or MagicDNS name) of your dashboard server — required
+      - DASHBOARD_URL=${DASHBOARD_URL:-http://100.x.x.x:8080}
 
       # Must match the server API_KEY
-      - API_KEY=changeme
+      - API_KEY=${API_KEY:-changeme}
 
       # Human-readable name shown in the dashboard
-      - NODE_NAME=my-server-01
+      - NODE_NAME=${NODE_NAME:-my-server-01}
 
       # How often to report (seconds)
-      - REPORT_INTERVAL=30
+      - REPORT_INTERVAL=${REPORT_INTERVAL:-30}
 
       # Let psutil read host /proc from the bind-mounted path
       - HOST_PROC=/host/proc
