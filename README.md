@@ -51,7 +51,7 @@ cd agent/
 cp .env.example .env
 # Set:
 #   TS_AUTHKEY    = Tailscale auth key (https://login.tailscale.com/admin/settings/keys)
-#   DASHBOARD_URL = http://<tailscale-ip-of-dashboard>:8080
+#   DASHBOARD_URL = https://<machine>.<tailnet>.ts.net   (Tailscale Serve URL — not 100.x:8080)
 #   API_KEY       = <same key as server>
 #   NODE_NAME     = <friendly name for this server>
 
@@ -102,7 +102,7 @@ Create `server/.env.example` from the above and commit it (without real values).
 | Variable          | Required | Default        | Description                          |
 |-------------------|----------|----------------|--------------------------------------|
 | `TS_AUTHKEY`      | Yes      | —              | Tailscale auth key for the sidecar   |
-| `DASHBOARD_URL`   | Yes      | —              | Tailscale URL of dashboard server    |
+| `DASHBOARD_URL`   | Yes      | —              | Tailscale Serve HTTPS URL (e.g. `https://deathstar.tail….ts.net`) |
 | `API_KEY`         | Yes      | `changeme`     | Must match server `API_KEY`          |
 | `NODE_NAME`       | No       | `vps-agent`    | Dashboard label + Tailscale hostname |
 | `REPORT_INTERVAL` | No       | `30`           | Seconds between metric reports       |

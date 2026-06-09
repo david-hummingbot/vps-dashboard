@@ -6,10 +6,17 @@ services:
     container_name: vps-agent-tailscale
     hostname: ${NODE_NAME:-vps-agent}     # name shown in your Tailscale admin console
     restart: unless-stopped
+    dns:
+      - 100.100.100.100                    # Tailscale MagicDNS (required for *.ts.net hostnames)
+    dns_opt:
+      - "edns0"
+      - "trust-ad"
+      - "ndots:99"
     environment:
       - TS_AUTHKEY=${TS_AUTHKEY:?Set TS_AUTHKEY in your .env}
       - TS_STATE_DIR=/var/lib/tailscale    # persist node identity across restarts
-      - TS_USERSPACE=false                 # kernel networking so the agent can reach 100.x directly
+      - TS_USERSPACE=false                 # kernel networking so the agent can reach tailnet peers
+      - TS_ACCEPT_DNS=true                 # use tailnet DNS (MagicDNS)
       - TS_EXTRA_ARGS=--accept-routes
     volumes:
       - ./tailscale-state:/var/lib/tailscale
@@ -34,8 +41,8 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
     environment:
-      # Tailscale IP (or MagicDNS name) of your dashboard server — required
-      - DASHBOARD_URL=${DASHBOARD_URL:-http://100.x.x.x:8080}
+      # Dashboard URL — use your Tailscale Serve HTTPS hostname (recommended)
+      - DASHBOARD_URL=${DASHBOARD_URL:-https://deathstar.tailce94f0.ts.net}
 
       # Must match the server API_KEY
       - API_KEY=${API_KEY:-changeme}
