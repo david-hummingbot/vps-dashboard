@@ -141,15 +141,12 @@ ensure_docker() {
   fi
 }
 
+EXISTING_INSTALL=0
+
 ensure_repo() {
   if [ -d "$INSTALL_DIR/server" ] && [ -d "$INSTALL_DIR/agent" ]; then
-    msg_info "Using existing install at ${INSTALL_DIR}"
-    if [ -d "$INSTALL_DIR/.git" ]; then
-      msg_info "Pulling latest changes..."
-      if ! git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH" >/dev/null 2>&1; then
-        msg_warn "Could not pull latest changes; continuing with local copy"
-      fi
-    fi
+    EXISTING_INSTALL=1
+    msg_info "Found existing install at ${INSTALL_DIR}"
   else
     msg_info "Cloning ${REPO_URL} → ${INSTALL_DIR}"
     if [ -e "$INSTALL_DIR" ]; then
@@ -170,19 +167,22 @@ choose_role() {
 
   if [ -n "${ROLE:-}" ]; then
     case "$ROLE" in
-      server|agent) SELECTED_ROLE="$ROLE"; return ;;
+      server|agent|update) SELECTED_ROLE="$ROLE"; return ;;
       *)
-        msg_error "ROLE must be 'server' or 'agent' (got: ${ROLE})"
+        msg_error "ROLE must be 'server', 'agent', or 'update' (got: ${ROLE})"
         exit 1
         ;;
     esac
   fi
 
   echo ""
-  echo -e "${BOLD}What are you installing?${RESET}"
+  echo -e "${BOLD}What would you like to do?${RESET}"
   echo ""
   echo "    1) Dashboard server  — central monitoring UI"
   echo "    2) Agent             — metric collector for this VPS"
+  if [ "$EXISTING_INSTALL" = "1" ]; then
+    echo "    3) Update            — pull latest and restart containers"
+  fi
   echo ""
   local choice=""
   while true; do
@@ -190,9 +190,51 @@ choose_role() {
     case "$choice" in
       1|server|s) SELECTED_ROLE="server"; return ;;
       2|agent|a)  SELECTED_ROLE="agent"; return ;;
-      *) msg_warn "Please enter 1 or 2" ;;
+      3|update|u)
+        if [ "$EXISTING_INSTALL" = "1" ]; then
+          SELECTED_ROLE="update"; return
+        fi
+        msg_warn "Update is only available for an existing install"
+        ;;
+      *) msg_warn "Please enter a valid option" ;;
     esac
   done
+}
+
+pull_latest() {
+  if [ ! -d "$INSTALL_DIR/.git" ]; then
+    msg_warn "Not a git checkout; skipping pull"
+    return
+  fi
+  msg_info "Pulling latest changes..."
+  if git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH" >/dev/null 2>&1; then
+    msg_ok "Updated to latest ${BRANCH}"
+  else
+    msg_warn "Could not pull latest changes; continuing with local copy"
+  fi
+}
+
+run_update() {
+  pull_latest
+
+  local updated=0
+  if [ -f "server/.env" ]; then
+    msg_info "Rebuilding dashboard server..."
+    (cd server && "${COMPOSE[@]}" up -d --build)
+    msg_ok "Dashboard server restarted"
+    updated=1
+  fi
+  if [ -f "agent/.env" ]; then
+    msg_info "Rebuilding agent..."
+    (cd agent && "${COMPOSE[@]}" up -d --build)
+    msg_ok "Agent restarted"
+    updated=1
+  fi
+
+  if [ "$updated" = "0" ]; then
+    msg_warn "No configured service found (no server/.env or agent/.env)."
+    msg_warn "Re-run and choose 'server' or 'agent' to configure one."
+  fi
 }
 
 configure_server() {
@@ -382,6 +424,11 @@ main() {
       echo "  Directory:  ${INSTALL_DIR}/agent"
       echo "  Logs:       docker logs -f vps-agent"
       echo "  Restart:    cd ${INSTALL_DIR}/agent && docker compose restart"
+      ;;
+    update)
+      run_update
+      echo ""
+      echo -e "${GREEN}${BOLD}Update complete!${RESET}"
       ;;
   esac
   echo ""

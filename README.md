@@ -20,9 +20,14 @@ curl -fsSL https://raw.githubusercontent.com/david-hummingbot/vps-dashboard/main
 
 The installer will:
 1. Clone the repo to `~/vps-dashboard` (override with `INSTALL_DIR=/path`)
-2. Ask whether you're setting up the **dashboard server** or an **agent**
+2. Ask whether you're setting up the **dashboard server**, an **agent**, or
+   running an **update** (shown when an existing install is detected)
 3. Prompt for the required configuration (API key, Tailscale auth key, etc.)
 4. Build and start the Docker containers
+
+Re-run the same command any time to update: choose **3) Update** to pull the
+latest code and rebuild/restart whichever services are configured on the host
+(or pass `ROLE=update`).
 
 Non-interactive example (agent):
 
